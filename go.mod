@@ -4,6 +4,8 @@ go 1.15
 
 require (
 	github.com/cloudfoundry-incubator/cf-test-helpers v1.0.0
+	github.com/cloudfoundry/honeycomb-ginkgo-reporter v0.0.2
+	github.com/honeycombio/libhoney-go v1.15.2
 	github.com/onsi/ginkgo v1.16.2
 	github.com/onsi/gomega v1.13.0
 	github.com/spf13/pflag v1.0.5 // indirect

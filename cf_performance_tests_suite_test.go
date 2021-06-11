@@ -7,6 +7,8 @@ import (
 
 	"github.com/cloudfoundry-incubator/cf-performance-tests/helpers"
 	"github.com/cloudfoundry-incubator/cf-test-helpers/workflowhelpers"
+	"github.com/cloudfoundry/honeycomb-ginkgo-reporter/honeycomb"
+	"github.com/cloudfoundry/honeycomb-ginkgo-reporter/honeycomb/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
@@ -35,7 +37,8 @@ func TestCfPerformanceTests(t *testing.T) {
 	}
 
 	jsonReporter := helpers.NewJsonReporter(fmt.Sprintf("cf-performance-test-results-%d.json", time.Now().Unix()))
+	honeyCombReporter := honeycomb.New(client.New(testConfig.Honeycomb))
 
 	RegisterFailHandler(Fail)
-	RunSpecsWithDefaultAndCustomReporters(t, "CfPerformanceTests Suite", []Reporter{jsonReporter})
+	RunSpecsWithDefaultAndCustomReporters(t, "CfPerformanceTests Suite", []Reporter{jsonReporter, honeyCombReporter})
 }

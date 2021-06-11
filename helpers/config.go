@@ -3,6 +3,8 @@ package helpers
 import (
 	"fmt"
 	"time"
+
+	"github.com/honeycombio/libhoney-go"
 )
 
 type Users struct {
@@ -30,6 +32,8 @@ type Config struct {
 
 	BasicTimeout time.Duration `mapstructure:"basic_timeout"`
 	LongTimeout  time.Duration `mapstructure:"long_timeout"`
+
+	Honeycomb libhoney.Config
 }
 
 func NewConfig() Config {
