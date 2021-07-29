@@ -74,6 +74,17 @@ func ExecuteStatement(db *sql.DB, ctx context.Context, statement string) {
 	checkError(err)
 }
 
+func ExecutePreparedInsertStatement(db *sql.DB, ctx context.Context, statement string, args ...interface{})int{
+	var lastInsertId int
+	stmt, err := db.PrepareContext(ctx, statement)
+	checkError(err)
+	defer stmt.Close()
+
+	err = stmt.QueryRowContext(ctx, args...).Scan(&lastInsertId)
+	checkError(err)
+	return lastInsertId
+}
+
 func ExecuteInsertStatement(db *sql.DB, ctx context.Context, statement string) int {
 	var lastInsertId int
 

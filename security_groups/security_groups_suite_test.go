@@ -1,4 +1,4 @@
-package domains
+package security_groups
 
 import (
 	"context"
@@ -23,9 +23,9 @@ var ccdb *sql.DB
 var uaadb *sql.DB
 var ctx context.Context
 const (
-	orgs = 1000
-	sharedDomains = 1000
-	privateDomains = 1000
+	orgs = 10
+	spaces = 100
+	securityGroups = 100
 )
 
 var _ = BeforeSuite(func() {
@@ -35,6 +35,8 @@ var _ = BeforeSuite(func() {
 
 	quotaId := helpers.ExecuteSelectStatementOneRow(ccdb, ctx, "SELECT id FROM quota_definitions WHERE name = 'default'")
 	var organizationIds []int
+	var spaceIds []int
+	var securityGroupIds []int
 
 	for i := 0; i < orgs; i++ {
 		guid := uuid.New()
@@ -43,19 +45,47 @@ var _ = BeforeSuite(func() {
 		organizationId := helpers.ExecutePreparedInsertStatement(ccdb, ctx, statement, guid.String(), name, quotaId)
 		organizationIds = append(organizationIds, organizationId)
 	}
-	for i := 0; i<sharedDomains; i++ {
-		sharedDomainGuid := uuid.New()
-		sharedDomainName := testConfig.NamePrefix + "-shareddomain-" + sharedDomainGuid.String()
-		statement := "INSERT INTO domains (guid, name) VALUES ($1, $2) RETURNING id"
-		helpers.ExecutePreparedInsertStatement(ccdb, ctx, statement, sharedDomainGuid.String(), sharedDomainName)
+	// TODO create orgs return orgs id; create spaces return space id ; 1 org = 1 space;
+
+	for _, orgId := range organizationIds{
+		for i := 0; i<spaces; i++ {
+			spaceGuid := uuid.New()
+			spaceName := testConfig.NamePrefix + "-space-" + spaceGuid.String()
+			statement := "INSERT INTO spaces (guid, name, organization_id) VALUES ($1, $2, $3) RETURNING id"
+			spaceId := helpers.ExecutePreparedInsertStatement(ccdb, ctx, statement, spaceGuid.String(), spaceName, orgId)
+			spaceIds = append(spaceIds, spaceId)
+		}
 	}
 
-	for i := 0; i<privateDomains; i++ {
-		privateDomainGuid := uuid.New()
-		privateDomainName := testConfig.NamePrefix + "-privatedomain-" + privateDomainGuid.String()
-		owningOrganizationId := organizationIds[rand.Intn(len(organizationIds))]
-		statement := "INSERT INTO domains (guid, name, owning_organization_id) VALUES ($1, $2, $3) RETURNING id"
-		helpers.ExecutePreparedInsertStatement(ccdb, ctx, statement, privateDomainGuid.String(), privateDomainName, owningOrganizationId)
+	for i := 0; i<securityGroups; i++ {
+		securityGroupsGuid := uuid.New()
+		securityGroupName := testConfig.NamePrefix + "-securitygroup-" + securityGroupsGuid.String()
+		securityRule := `[
+  {
+	"protocol": "icmp",
+	"destination": "0.0.0.0/0",
+	"type": 0,
+	"code": 0
+  },
+  {
+	"protocol": "tcp",
+	"destination": "10.0.11.0/24",
+	"ports": "80,443",
+	"log": true,
+	"description": "Allow http and https traffic to ZoneA"
+  }
+]`
+		statement := "INSERT INTO security_groups (guid, name, rules) VALUES ($1, $2, $3) RETURNING id"
+		securityGroupId := helpers.ExecutePreparedInsertStatement(ccdb, ctx, statement, securityGroupsGuid.String(), securityGroupName, securityRule)
+		securityGroupIds = append(securityGroupIds, securityGroupId)
+	}
+
+	for _, spaceId := range spaceIds{
+		for i := 0; i<5; i++ {
+			securityGroupId := securityGroupIds[rand.Intn(len(securityGroupIds))]
+			statement := "INSERT INTO security_groups_spaces (security_group_id, space_id) VALUES ($1, $2) RETURNING security_groups_spaces_pk"
+			helpers.ExecutePreparedInsertStatement(ccdb, ctx, statement, securityGroupId, spaceId)
+		}
 	}
 
 })
@@ -90,7 +120,7 @@ func TestDomains(t *testing.T) {
 	}
 
 	timestamp := time.Now().Unix()
-	jsonReporter := helpers.NewJsonReporter(fmt.Sprintf("../test-results/domains-test-results-%d.json", timestamp), testConfig.CfDeploymentVersion, timestamp)
+	jsonReporter := helpers.NewJsonReporter(fmt.Sprintf("../test-results/security-groups-test-results-%d.json", timestamp), testConfig.CfDeploymentVersion, timestamp)
 
 	RegisterFailHandler(Fail)
 	RunSpecsWithDefaultAndCustomReporters(t, "DomainsTest Suite", []Reporter{jsonReporter})
