@@ -15,43 +15,42 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
-
 )
 
 var testConfig helpers.Config = helpers.NewConfig()
 var testSetup *workflowhelpers.ReproducibleTestSuiteSetup
 var ccdb *sql.DB
+var uaadb *sql.DB
 var ctx context.Context
+const (
+	orgs = 1000
+	sharedDomains = 1000
+	privateDomains = 1000
+)
 
 var _ = BeforeSuite(func() {
 	testSetup = workflowhelpers.NewTestSuiteSetup(&testConfig)
 	testSetup.Setup()
-	ccdb, err := sql.Open("pgx", testConfig.CcdbConnection)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer ccdb.Close()
-
-	ctx = context.Background()
+	ccdb, uaadb, ctx = helpers.OpenDbConnections(testConfig.CcdbConnection, testConfig.UaaConnection)
 
 	quotaId := helpers.ExecuteSelectStatementOneRow(ccdb, ctx, "SELECT id FROM quota_definitions WHERE name = 'default'")
 	var organizationIds []int
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < orgs; i++ {
 		guid := uuid.New()
 		name := testConfig.NamePrefix + "-org-" + guid.String()
 		statement := fmt.Sprintf("INSERT INTO organizations (guid, name, quota_definition_id) VALUES ('%s', '%s', %d) RETURNING id", guid.String(), name, quotaId)
 		organizationId := helpers.ExecuteInsertStatement(ccdb, ctx, statement)
 		organizationIds = append(organizationIds, organizationId)
 	}
-	for i := 0; i<100;i++ {
+	for i := 0; i<sharedDomains; i++ {
 		sharedDomainGuid := uuid.New()
 		sharedDomainName := testConfig.NamePrefix + "-shareddomain-" + sharedDomainGuid.String()
 		statement := fmt.Sprintf("INSERT INTO domains (guid, name) VALUES ('%s', '%s') RETURNING id", sharedDomainGuid.String(), sharedDomainName)
 		helpers.ExecuteInsertStatement(ccdb, ctx, statement)
 	}
 
-	for i := 0; i<100;i++ {
+	for i := 0; i<privateDomains; i++ {
 		privateDomainGuid := uuid.New()
 		privateDomainName := testConfig.NamePrefix + "-privatedomain-" + privateDomainGuid.String()
 		owningOrganizationId := organizationIds[rand.Intn(len(organizationIds))]
@@ -59,6 +58,21 @@ var _ = BeforeSuite(func() {
 		helpers.ExecuteInsertStatement(ccdb, ctx, statement)
 	}
 
+})
+
+var _ = AfterSuite(func() {
+
+	helpers.CleanupTestData(ccdb, uaadb, ctx)
+
+	err := ccdb.Close()
+	if err != nil {
+		log.Print(err)
+	}
+
+	err = uaadb.Close()
+	if err != nil {
+		log.Print(err)
+	}
 })
 
 func TestDomains(t *testing.T) {

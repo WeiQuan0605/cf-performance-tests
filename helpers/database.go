@@ -11,17 +11,21 @@ import (
 
 const TestDataPrefix = "perf-%"
 
-func CleanupTestData(ccdbConnection string, uaaConnection string) {
+
+func OpenDbConnections(ccdbConnection string, uaaConnection string)(ccdb, uaadb *sql.DB, ctx context.Context){
+
 	ccdb, err := sql.Open("pgx", ccdbConnection)
 	checkError(err)
-	defer ccdb.Close()
 
-	uaadb, err := sql.Open("pgx", uaaConnection)
+	uaadb, err = sql.Open("pgx", uaaConnection)
 	checkError(err)
-	defer uaadb.Close()
 
-	ctx := context.Background()
+	ctx = context.Background()
 
+	return
+}
+
+func CleanupTestData(ccdb, uaadb *sql.DB, ctx context.Context) {
 	deleteStatements := []string{
 		"DELETE FROM route_mappings USING routes WHERE routes.guid = route_mappings.route_guid AND routes.host LIKE '%s'",
 		"DELETE FROM routes WHERE host LIKE '%s'",

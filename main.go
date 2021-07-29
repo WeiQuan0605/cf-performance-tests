@@ -12,6 +12,7 @@ const (
 
 func main() {
 	log.Print("Starting database test...")
-	helpers.CleanupTestData(CcdbConnection, UaaConnection)
+	ccdb, uaadb, ctx := helpers.OpenDbConnections(CcdbConnection, UaaConnection)
+	helpers.CleanupTestData(ccdb, uaadb, ctx)
 	log.Print("Finished.")
 }
