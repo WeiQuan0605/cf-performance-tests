@@ -1,7 +1,8 @@
-package main
+package domains
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 
 	"github.com/cloudfoundry-incubator/cf-performance-tests/helpers"
@@ -12,9 +13,20 @@ import (
 	. "github.com/onsi/gomega/gexec"
 )
 
+
 var _ = Describe("domains", func() {
+
+	BeforeEach(func() {
+		log.Print("domain before each:")
+
+	})
+
+	AfterEach(func() {
+		log.Print("domain after each:")
+	})
+
 	Describe("GET /v3/domains", func() {
-		Measure("as admin", func(b Benchmarker) {
+		FMeasure("as admin", func(b Benchmarker) {
 			workflowhelpers.AsUser(testSetup.AdminUserContext(), testConfig.BasicTimeout, func() {
 				b.Time("request time", func() {
 					Expect(cf.Cf("curl", "--fail", "/v3/domains").Wait(testConfig.BasicTimeout)).To(Exit(0))
