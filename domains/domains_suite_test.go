@@ -5,13 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"math/rand"
 	"testing"
 	"time"
 
 	"github.com/cloudfoundry-incubator/cf-performance-tests/helpers"
 	"github.com/cloudfoundry-incubator/cf-test-helpers/workflowhelpers"
-	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/spf13/viper"
@@ -22,9 +20,10 @@ var testSetup *workflowhelpers.ReproducibleTestSuiteSetup
 var ccdb *sql.DB
 var uaadb *sql.DB
 var ctx context.Context
+
 const (
-	orgs = 10
-	sharedDomains = 10
+	orgs           = 10
+	sharedDomains  = 10
 	privateDomains = 10
 )
 
@@ -33,31 +32,63 @@ var _ = BeforeSuite(func() {
 	testSetup.Setup()
 	ccdb, uaadb, ctx = helpers.OpenDbConnections(testConfig.CcdbConnection, testConfig.UaadbConnection)
 
-	quotaId := helpers.ExecuteSelectStatementOneRow(ccdb, ctx, "SELECT id FROM quota_definitions WHERE name = 'default'")
-	var organizationIds []int
+	//quotaId := helpers.ExecuteSelectStatementOneRow(ccdb, ctx, "SELECT id FROM quota_definitions WHERE name = 'default'")
 
-	for i := 0; i < orgs; i++ {
-		guid := uuid.New()
-		name := testConfig.NamePrefix + "-org-" + guid.String()
-		statement := "INSERT INTO organizations (guid, name, quota_definition_id) VALUES ($1, $2, $3) RETURNING id"
-		organizationId := helpers.ExecutePreparedInsertStatement(ccdb, ctx, statement, guid.String(), name, quotaId)
-		organizationIds = append(organizationIds, organizationId)
-	}
-	for i := 0; i<sharedDomains; i++ {
-		sharedDomainGuid := uuid.New()
-		sharedDomainName := testConfig.NamePrefix + "-shareddomain-" + sharedDomainGuid.String()
-		statement := "INSERT INTO domains (guid, name) VALUES ($1, $2) RETURNING id"
-		helpers.ExecutePreparedInsertStatement(ccdb, ctx, statement, sharedDomainGuid.String(), sharedDomainName)
-	}
+	// TODO 1: Replace hard-coded values in below templates with values from testConfig (e.g. with fmt.Sprintf)
+	// TODO 2: Instead of using anonymous DO functions as below, we could create one .sql script with all
+	// required create functions and pass it to the database once. Then we can just call the stored db functions here.
 
-	for i := 0; i<privateDomains; i++ {
-		privateDomainGuid := uuid.New()
-		privateDomainName := testConfig.NamePrefix + "-privatedomain-" + privateDomainGuid.String()
-		owningOrganizationId := organizationIds[rand.Intn(len(organizationIds))]
-		statement := "INSERT INTO domains (guid, name, owning_organization_id) VALUES ($1, $2, $3) RETURNING id"
-		helpers.ExecutePreparedInsertStatement(ccdb, ctx, statement, privateDomainGuid.String(), privateDomainName, owningOrganizationId)
-	}
+	createOrgStatement := `
+DO
+-- or (instead of DO): CREATE FUNCTION create_test_orgs() RETURNS void AS
+$$
+DECLARE
+    org_guid text;
+BEGIN
+    FOR i IN 1..10
+        LOOP
+            org_guid := gen_random_uuid();
+            INSERT INTO organizations (guid, name, quota_definition_id)
+            VALUES (org_guid, 'perf-test-org-' || org_guid, 1);
+        END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+`
+	createSharedDomainStatement := `
+DO
+$$
+    DECLARE
+        shared_domain_guid text;
+    BEGIN
+        FOR i IN 1..10
+            LOOP
+                shared_domain_guid := gen_random_uuid();
+                INSERT INTO domains (guid, name)
+                VALUES (shared_domain_guid, 'perf-test-shared-domain-' || shared_domain_guid);
+            END LOOP;
+    END;
+$$ LANGUAGE plpgsql;
+`
+	createPrivateDomainStatement := `
+DO
+$$
+    DECLARE
+        private_domain_guid text;
+    BEGIN
+        FOR i IN 1..10
+            LOOP
+                private_domain_guid := gen_random_uuid();
+                INSERT INTO domains (guid, name, owning_organization_id)
+                SELECT private_domain_guid, 'perf-test-private-domain-' || private_domain_guid, id
+                FROM organizations WHERE name != 'default' ORDER BY random() LIMIT 1;
+            END LOOP;
+    END;
+$$ LANGUAGE plpgsql;
+`
 
+	helpers.ExecuteStatement(ccdb, ctx, createOrgStatement)
+	helpers.ExecuteStatement(ccdb, ctx, createSharedDomainStatement)
+	helpers.ExecuteStatement(ccdb, ctx, createPrivateDomainStatement)
 })
 
 var _ = AfterSuite(func() {
@@ -95,4 +126,3 @@ func TestDomains(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecsWithDefaultAndCustomReporters(t, "DomainsTest Suite", []Reporter{jsonReporter})
 }
-
