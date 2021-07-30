@@ -23,15 +23,15 @@ var ccdb *sql.DB
 var uaadb *sql.DB
 var ctx context.Context
 const (
-	orgs = 1000
-	sharedDomains = 1000
-	privateDomains = 1000
+	orgs = 10
+	sharedDomains = 10
+	privateDomains = 10
 )
 
 var _ = BeforeSuite(func() {
 	testSetup = workflowhelpers.NewTestSuiteSetup(&testConfig)
 	testSetup.Setup()
-	ccdb, uaadb, ctx = helpers.OpenDbConnections(testConfig.CcdbConnection, testConfig.UaaConnection)
+	ccdb, uaadb, ctx = helpers.OpenDbConnections(testConfig.CcdbConnection, testConfig.UaadbConnection)
 
 	quotaId := helpers.ExecuteSelectStatementOneRow(ccdb, ctx, "SELECT id FROM quota_definitions WHERE name = 'default'")
 	var organizationIds []int

@@ -24,14 +24,14 @@ var uaadb *sql.DB
 var ctx context.Context
 const (
 	orgs = 10
-	spaces = 100
-	securityGroups = 100
+	spaces = 10
+	securityGroups = 10
 )
 
 var _ = BeforeSuite(func() {
 	testSetup = workflowhelpers.NewTestSuiteSetup(&testConfig)
 	testSetup.Setup()
-	ccdb, uaadb, ctx = helpers.OpenDbConnections(testConfig.CcdbConnection, testConfig.UaaConnection)
+	ccdb, uaadb, ctx = helpers.OpenDbConnections(testConfig.CcdbConnection, testConfig.UaadbConnection)
 
 	quotaId := helpers.ExecuteSelectStatementOneRow(ccdb, ctx, "SELECT id FROM quota_definitions WHERE name = 'default'")
 	var organizationIds []int
@@ -105,7 +105,7 @@ var _ = AfterSuite(func() {
 	}
 })
 
-func TestDomains(t *testing.T) {
+func TestSecurityGroups(t *testing.T) {
 	viper.SetConfigName("config")
 	viper.AddConfigPath("..")
 	viper.AddConfigPath("$HOME/.cf-performance-tests")
@@ -123,6 +123,6 @@ func TestDomains(t *testing.T) {
 	jsonReporter := helpers.NewJsonReporter(fmt.Sprintf("../test-results/security-groups-test-results-%d.json", timestamp), testConfig.CfDeploymentVersion, timestamp)
 
 	RegisterFailHandler(Fail)
-	RunSpecsWithDefaultAndCustomReporters(t, "DomainsTest Suite", []Reporter{jsonReporter})
+	RunSpecsWithDefaultAndCustomReporters(t, "SecurityGroupsTest Suite", []Reporter{jsonReporter})
 }
 
