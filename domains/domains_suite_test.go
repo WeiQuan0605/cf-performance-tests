@@ -38,54 +38,9 @@ var _ = BeforeSuite(func() {
 	// TODO 2: Instead of using anonymous DO functions as below, we could create one .sql script with all
 	// required create functions and pass it to the database once. Then we can just call the stored db functions here.
 
-	createOrgStatement := `
-DO
--- or (instead of DO): CREATE FUNCTION create_test_orgs() RETURNS void AS
-$$
-DECLARE
-    org_guid text;
-BEGIN
-    FOR i IN 1..10
-        LOOP
-            org_guid := gen_random_uuid();
-            INSERT INTO organizations (guid, name, quota_definition_id)
-            VALUES (org_guid, 'perf-test-org-' || org_guid, 1);
-        END LOOP;
-END;
-$$ LANGUAGE plpgsql;
-`
-	createSharedDomainStatement := `
-DO
-$$
-    DECLARE
-        shared_domain_guid text;
-    BEGIN
-        FOR i IN 1..10
-            LOOP
-                shared_domain_guid := gen_random_uuid();
-                INSERT INTO domains (guid, name)
-                VALUES (shared_domain_guid, 'perf-test-shared-domain-' || shared_domain_guid);
-            END LOOP;
-    END;
-$$ LANGUAGE plpgsql;
-`
-	createPrivateDomainStatement := `
-DO
-$$
-    DECLARE
-        private_domain_guid text;
-    BEGIN
-        FOR i IN 1..10
-            LOOP
-                private_domain_guid := gen_random_uuid();
-                INSERT INTO domains (guid, name, owning_organization_id)
-                SELECT private_domain_guid, 'perf-test-private-domain-' || private_domain_guid, id
-                FROM organizations WHERE name != 'default' ORDER BY random() LIMIT 1;
-            END LOOP;
-    END;
-$$ LANGUAGE plpgsql;
-`
-
+	createOrgStatement := fmt.Sprintf(`SELECT FROM create_test_orgs(%v)`, orgs)
+	createSharedDomainStatement := fmt.Sprintf(`SELECT FROM create_shared_domains(%v)`, sharedDomains)
+	createPrivateDomainStatement := fmt.Sprintf(`SELECT FROM create_private_domains(%v)`, privateDomains)
 	helpers.ExecuteStatement(ccdb, ctx, createOrgStatement)
 	helpers.ExecuteStatement(ccdb, ctx, createSharedDomainStatement)
 	helpers.ExecuteStatement(ccdb, ctx, createPrivateDomainStatement)
