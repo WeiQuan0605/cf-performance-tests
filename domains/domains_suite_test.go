@@ -33,17 +33,15 @@ var _ = BeforeSuite(func() {
 	ccdb, uaadb, ctx = helpers.OpenDbConnections(testConfig.CcdbConnection, testConfig.UaadbConnection)
 
 	//quotaId := helpers.ExecuteSelectStatementOneRow(ccdb, ctx, "SELECT id FROM quota_definitions WHERE name = 'default'")
-
-	// TODO 1: Replace hard-coded values in below templates with values from testConfig (e.g. with fmt.Sprintf)
-	// TODO 2: Instead of using anonymous DO functions as below, we could create one .sql script with all
 	// required create functions and pass it to the database once. Then we can just call the stored db functions here.
 
 	createOrgStatement := fmt.Sprintf(`SELECT FROM create_test_orgs(%v)`, orgs)
-	createSharedDomainStatement := fmt.Sprintf(`SELECT FROM create_shared_domains(%v)`, sharedDomains)
-	createPrivateDomainStatement := fmt.Sprintf(`SELECT FROM create_private_domains(%v)`, privateDomains)
+	createSharedDomainStatement := fmt.Sprintf(`SELECT FROM create_test_shared_domains(%v)`, sharedDomains)
+	createPrivateDomainStatement := fmt.Sprintf(`SELECT FROM create_test_private_domains(%v)`, privateDomains)
 	helpers.ExecuteStatement(ccdb, ctx, createOrgStatement)
 	helpers.ExecuteStatement(ccdb, ctx, createSharedDomainStatement)
 	helpers.ExecuteStatement(ccdb, ctx, createPrivateDomainStatement)
+
 })
 
 var _ = AfterSuite(func() {
